@@ -1,0 +1,1 @@
+{"mappings":"AAAA;;;;AAGA;;;;AAGA","sources":["src/css/index.css"],"sourcesContent":["textarea {\r\n\twidth:100%;\r\n}\r\n.hidden {\r\n\tdisplay: none;\r\n}\r\n.visible {\r\n\tdisplay: block;\r\n}"],"names":[],"version":3,"file":"index.3092e1e0.css.map","sourceRoot":"/__parcel_source_root/"}
