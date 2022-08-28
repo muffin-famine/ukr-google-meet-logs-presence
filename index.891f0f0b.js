@@ -540,6 +540,10 @@ function init() {
     document.getElementById("fileSelector").addEventListener("change", function(changeEvent) {
         analyzeFiles(this.files);
     });
+    document.getElementById("teacherSelector").addEventListener("change", function(val) {
+        // @ts-ignore
+        teacherSelected(val.target.value);
+    });
 }
 function analyzeText(csv) {
     let lines = csv.split(/\r?\n/g);
@@ -550,10 +554,12 @@ function analyzeText(csv) {
         header: true
     });
 }
+var combinedLogs;
 async function analyzeFiles(files) {
+    combinedLogs = new (0, _combinedLogs.CombinedLogs)();
+    document.getElementById("teacherSelector").innerHTML = "";
+    document.getElementById("teacherBlock").classList.add("hidden");
     let csvs = await readFiles(files);
-    let allData = [];
-    let combinedLogs = new (0, _combinedLogs.CombinedLogs)();
     for (const csv of csvs){
         let parsedCsv = analyzeText(csv);
         if (parsedCsv.errors.length > 0) {
@@ -562,30 +568,58 @@ async function analyzeFiles(files) {
         }
         let entries = parsedCsv.data.map((csvEntry)=>new (0, _googleMeetEntry.GoogleMeetEntry)(csvEntry));
         combinedLogs.addStudents(new (0, _singleMeet.SingleMeet)(entries));
-        allData = allData.concat(parsedCsv.data);
     }
+    let teacherCandidates = combinedLogs.findTeacherCandidates();
+    if (teacherCandidates.length === 0) {
+        alert("Не знайдено жодного користувача, який би відвідав усі заняття. Викладач відсутній.");
+        return;
+    }
+    let autoSelectTeacher = combinedLogs.autoSelectTeacher(teacherCandidates);
+    let selectorHtml = "";
+    for (const teacherCandidate of teacherCandidates){
+        let sel = teacherCandidate === autoSelectTeacher ? "selected" : "";
+        selectorHtml += "<option value='" + teacherCandidate + "'" + sel + ">" + teacherCandidate + "</option>";
+    }
+    document.getElementById("teacherSelector").innerHTML = selectorHtml;
+    document.getElementById("teacherBlock").classList.remove("hidden");
+    teacherSelected(autoSelectTeacher);
+}
+function teacherSelected(selectedTeacher) {
+    combinedLogs?.setTeacher(selectedTeacher);
     let text = "";
-    for(let studentName in combinedLogs.studentsLogs){
-        text += "<div class='container my-2'>";
-        text += "<div class='row'><div class='col-md-12'><h5>" + studentName + "</h5></div></div>";
-        for (const meet of combinedLogs.meets){
-            const meetEntry = combinedLogs.studentsLogs[studentName].find((s)=>meet.entries.indexOf(s) !== -1);
-            if (meetEntry) {
-                let percentage = Math.floor(meetEntry.timeInCallSeconds * 100 / meet.durationSeconds);
-                text += "<div class='row'><div class='col-md-3'>" + formatDate(meet.start) + "</div><div class='col-md-1'>✅</div><div class='col-md-2'>" + percentage + "%</div></div>";
-            } else text += "<div class='row'><div class='col-md-3'>" + formatDate(meet.start) + "</div><div class='col-md-1'>❌</div></div>";
-        }
-        text += "</div>";
-    }
+    text += renderPerson(combinedLogs, selectedTeacher, true);
+    for(let studentName in combinedLogs?.studentsLogs)if (studentName !== selectedTeacher) text += renderPerson(combinedLogs, studentName, false);
     if (text) displayGeneratedInfo(text);
+}
+function renderPerson(combinedLogs, studentName, teacher) {
+    let text = "";
+    let teacherClass = teacher ? "teacher" : "";
+    text += "<div class='container my-2 " + teacherClass + "'>";
+    text += "<div class='row'><div class='col-md-12'><h5>" + studentName + "</h5></div></div>";
+    for (const meet of combinedLogs.meets){
+        const meetEntry = combinedLogs.studentsLogs[studentName].find((s)=>meet.entries.indexOf(s) !== -1);
+        // @ts-ignore: Object is possibly 'null'.
+        const durationMins = Math.floor(meet.durationSeconds / 60);
+        if (meetEntry) {
+            const durationStudentMins = Math.floor(meetEntry.timeInCallSeconds / 60);
+            // @ts-ignore: Object is possibly 'null'.
+            let percentage = Math.floor(meetEntry.timeInCallSeconds * 100 / meet.durationSeconds);
+            text += "<div class='row'><div class='col-md-3'>" + formatDate(meet.start) + "</div><div class='col-md-2'>" + durationStudentMins + "/" + durationMins + " хв.</div><div class='col-md-1'>✅</div><div class='col-md-2'>" + percentage + "%</div></div>";
+        } else text += "<div class='row'><div class='col-md-3'>" + formatDate(meet.start) + "</div><div class='col-md-2'>" + "0/" + durationMins + " хв.</div><div class='col-md-1'>❌</div></div>";
+    }
+    text += "</div>";
+    return text;
 }
 function formatDate(date) {
     let options = {
         year: "numeric",
         month: "long",
-        day: "numeric"
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric"
     };
-    return date.toLocaleDateString("uk-UA", options);
+    return date.toLocaleString("uk-UA", options);
 }
 async function readFiles(files) {
     return new Promise(async (resolve)=>{
@@ -1277,6 +1311,28 @@ class CombinedLogs {
             this.studentsLogs[fullName].push(entry);
         }
     }
+    findTeacherCandidates() {
+        let teacherCandidates = this.meets[0].entries.map((e)=>e.fullName);
+        for (const meet of this.meets)teacherCandidates = teacherCandidates.filter((value)=>meet.entries.map((e)=>e.fullName).indexOf(value) !== -1);
+        return teacherCandidates;
+    }
+    autoSelectTeacher(candidates) {
+        let maxCandidate = candidates[0];
+        let maxTime = 0;
+        for (const candidate of candidates){
+            let candidateTime = 0;
+            for (const meet of this.meets)candidateTime += meet.entries.find((e)=>e.fullName === candidate)?.timeInCallSeconds ?? 0;
+            if (maxTime < candidateTime) {
+                maxTime = candidateTime;
+                maxCandidate = candidate;
+            }
+        }
+        this.setTeacher(maxCandidate);
+        return maxCandidate;
+    }
+    setTeacher(teacher) {
+        this.meets.forEach((m)=>m.setTeacher(teacher));
+    }
 }
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7TXqn":[function(require,module,exports) {
@@ -1286,15 +1342,16 @@ parcelHelpers.export(exports, "SingleMeet", ()=>SingleMeet);
 class SingleMeet {
     constructor(entries){
         let minStart = new Date();
-        let maxEnd = new Date(0);
-        for (const entry of entries){
-            if (entry.firstSeen.getTime() < minStart.getTime()) minStart = entry.firstSeen;
-            if (entry.lastSeen.getTime() > maxEnd.getTime()) maxEnd = entry.lastSeen;
-        }
+        for (const entry of entries)if (entry.firstSeen.getTime() < minStart.getTime()) minStart = entry.firstSeen;
         this.start = minStart;
-        this.end = maxEnd;
-        this.durationSeconds = (this.end.getTime() - this.start.getTime()) / 1000;
         this.entries = entries;
+    }
+    setTeacher(teacher) {
+        let teacherEntry = this.entries.find((e)=>e.fullName === teacher);
+        if (teacherEntry) {
+            this.start = teacherEntry.firstSeen;
+            this.durationSeconds = teacherEntry.timeInCallSeconds;
+        }
     }
 }
 

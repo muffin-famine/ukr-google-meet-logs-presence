@@ -12002,4 +12002,11 @@ textarea {
   display: block;
 }
 
+.teacher {
+  border: 1px solid green;
+  border-radius: 10px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
 /*# sourceMappingURL=index.39dfcbfd.css.map */
