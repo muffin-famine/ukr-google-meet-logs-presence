@@ -23,4 +23,33 @@ export class CombinedLogs {
         }
     }
 
+    findTeacherCandidates(): string[] {
+        let teacherCandidates: string[] = this.meets[0].entries.map(e => e.fullName);
+        for (const meet of this.meets) {
+            teacherCandidates = teacherCandidates.filter(value => meet.entries.map(e => e.fullName).indexOf(value) !== -1);
+        }
+        return teacherCandidates;
+    }
+
+    autoSelectTeacher(candidates: string[]): string {
+        let maxCandidate = candidates[0];
+        let maxTime = 0;
+        for (const candidate of candidates) {
+            let candidateTime = 0;
+            for (const meet of this.meets) {
+                candidateTime += meet.entries.find(e => e.fullName === candidate)?.timeInCallSeconds ?? 0;
+            }
+            if (maxTime < candidateTime) {
+                maxTime = candidateTime;
+                maxCandidate = candidate;
+            }
+        }
+        this.setTeacher(maxCandidate);
+        return maxCandidate;
+    }
+
+    setTeacher(teacher: string) {
+        this.meets.forEach(m => m.setTeacher(teacher));
+    }
+
 }

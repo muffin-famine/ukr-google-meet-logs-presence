@@ -6,9 +6,19 @@
 </head>
 <body>
 <div class="container">
-    <form name="main_form">
-        <p>Виберіть список файлів з логами:</p>
-        <input type="file" id="fileSelector" multiple accept="text/csv">
+    <h1 class="my-5">
+        Програма для аналізу логів Google Meet
+    </h1>
+    <form>
+        <div class="mb-3 row">
+            <label for="fileSelector" class="form-label">Виберіть список файлів з логами:</label>
+            <input class="form-control" type="file" id="fileSelector" multiple accept="text/csv">
+        </div>
+        <div id="teacherBlock" class="mb-3 row hidden">
+            <label for="teacherSelector" class="form-label">Викладач:</label>
+            <select id="teacherSelector" class="form-select">
+            </select>
+        </div>
     </form>
     <div id="results" class="hidden container">
     </div>
