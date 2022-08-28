@@ -557,8 +557,10 @@ function analyzeText(csv) {
 var combinedLogs;
 async function analyzeFiles(files) {
     combinedLogs = new (0, _combinedLogs.CombinedLogs)();
-    document.getElementById("teacherSelector").innerHTML = "";
     document.getElementById("teacherBlock").classList.add("hidden");
+    document.getElementById("teacherSelector").innerHTML = "";
+    document.getElementById("results").classList.add("hidden");
+    document.getElementById("results").innerHTML = "";
     let csvs = await readFiles(files);
     for (const csv of csvs){
         let parsedCsv = analyzeText(csv);
@@ -572,6 +574,11 @@ async function analyzeFiles(files) {
     let teacherCandidates = combinedLogs.findTeacherCandidates();
     if (teacherCandidates.length === 0) {
         alert("Не знайдено жодного користувача, який би відвідав усі заняття. Викладач відсутній.");
+        combinedLogs = new (0, _combinedLogs.CombinedLogs)();
+        document.getElementById("teacherBlock").classList.add("hidden");
+        document.getElementById("teacherSelector").innerHTML = "";
+        document.getElementById("results").classList.add("hidden");
+        document.getElementById("results").innerHTML = "";
         return;
     }
     let autoSelectTeacher = combinedLogs.autoSelectTeacher(teacherCandidates);
